@@ -1,35 +1,87 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState, useEffect } from 'react';
+import './App.css';
+import SearchBar from './components/searchbar/SearchBar';
+import ImageGallery from './components/imagegallery/ImageGallery';
+import Loader from './components/loader/Loader';
+import axios from "axios";
+import ErrorMessage from './components/errormessage/ErrorMessage'; 
+import LoadMoreBtn from './components/loadmorebtn/LoadMoreBtn';
+import ImageModal from './components/imagemodal/ImageModal';
+
+const API_URL = 'https://api.unsplash.com/search/photos';
+const API_KEY = '2gccEf5nNL5f-qpjUNez7-ERKVTgjTOeiGh-UC764RI';
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [articles, setArticles] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+  const [query, setQuery] = useState(''); 
+  const [page, setPage] = useState(1);
+  const [modalIsOpen, setModalIsOpen] = useState(false); 
+  const [selectedImage, setSelectedImage] = useState(null);
+
+  useEffect(() => {
+    async function fetchArticles() {
+      if (!query) return;
+      try {
+        setLoading(true);
+        const response = await axios.get(API_URL, {
+          params: {
+            query,
+            page,
+            per_page: 12,
+            client_id: API_KEY,
+          },
+        });
+        setArticles(prevArticles => [...prevArticles, ...response.data.results]);
+        setError(false); 
+      } catch (error) {
+        setError(true); 
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchArticles();
+  }, [query, page]); 
+
+  const loadMoreImages = () => {
+    event.preventDefault();
+    setPage(prevPage => prevPage + 1);
+  };
+
+  const handleSubmit = (searchTerm) => {
+    setQuery(searchTerm);
+    setArticles([]); 
+    setPage(1);  
+  };
+
+  const openModal = (image) => {
+    setSelectedImage(image); 
+    setModalIsOpen(true);  
+  };
+
+  const closeModal = () => {
+    setModalIsOpen(false);  
+  };
 
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <SearchBar onSubmit={handleSubmit} />
+      {error && <ErrorMessage />} 
+      {!error && (
+        <div>
+          <ImageGallery articles={articles} openModal={openModal} />
+          {loading && (<Loader />)}
+        </div>
+      )}
+      {articles.length > 0 && !loading && <LoadMoreBtn onClick={loadMoreImages} disabled={loading} />}
+      <ImageModal 
+        isOpen={modalIsOpen} 
+        onClose={closeModal} 
+        image={selectedImage} 
+      />
     </>
-  )
+  );
 }
 
-export default App
+export default App;
